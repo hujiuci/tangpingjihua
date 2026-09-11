@@ -1,6 +1,5 @@
-const axios = require('axios');
+import axios from 'axios';
 
-// 缓存百度access_token，30天有效期，提前60秒刷新
 let tokenCache = {
   accessToken: null,
   expireTime: 0
@@ -13,22 +12,22 @@ async function getBaiduToken() {
   }
   const apiKey = process.env.BAIDU_API_KEY;
   const secretKey = process.env.BAIDU_SECRET_KEY;
-  const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`
+  if (!apiKey || !secretKey) {
+    throw new Error("缺少百度API密钥环境变量");
+  }
+  const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
   const res = await axios.post(url);
   tokenCache.accessToken = res.data.access_token;
   tokenCache.expireTime = now + res.data.expires_in * 1000;
   return tokenCache.accessToken;
 }
 
-// Vercel Serverless入口函数
-module.exports = async function handler(req, res) {
-  // 跨域配置，允许Lovable网站访问
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // 处理浏览器OPTIONS预检请求
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -47,7 +46,6 @@ module.exports = async function handler(req, res) {
       { image: imageBase64 },
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
-    // 过滤，只保留食物分类，去重
     const foods = result.data.result
       .filter(item => item.root_object === "食物")
       .map(item => item.keyword);
