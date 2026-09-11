@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 let tokenCache = {
   accessToken: null,
   expireTime: 0
@@ -16,9 +14,10 @@ async function getBaiduToken() {
     throw new Error("缺少百度API密钥环境变量");
   }
   const url = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
-  const res = await axios.post(url);
-  tokenCache.accessToken = res.data.access_token;
-  tokenCache.expireTime = now + res.data.expires_in * 1000;
+  const res = await fetch(url, { method: "POST" });
+  const data = await res.json();
+  tokenCache.accessToken = data.access_token;
+  tokenCache.expireTime = now + data.expires_in * 1000;
   return tokenCache.accessToken;
 }
 
@@ -41,12 +40,17 @@ export default async function handler(req, res) {
       return res.json({ success: false, msg: "请上传图片文件" });
     }
     const token = await getBaiduToken();
-    const result = await axios.post(
+    const params = new URLSearchParams();
+    params.append("image", imageBase64);
+    const result = await fetch(
       `https://aip.baidubce.com/rest/2.0/image-classify/v2/advanced_general?access_token=${token}`,
-      { image: imageBase64 },
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      {
+        method: "POST",
+        body: params
+      }
     );
-    const foods = result.data.result
+    const resultData = await result.json();
+    const foods = resultData.result
       .filter(item => item.root_object === "食物")
       .map(item => item.keyword);
     const uniqueFoods = [...new Set(foods)];
