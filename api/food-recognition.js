@@ -5,6 +5,7 @@ let tokenCache = {
 
 async function getBaiduToken() {
   const now = Date.now();
+  // 复用缓存token，减少百度接口请求
   if (tokenCache.accessToken && tokenCache.expireTime > now + 60 * 1000) {
     return tokenCache.accessToken;
   }
@@ -21,12 +22,15 @@ async function getBaiduToken() {
   return tokenCache.accessToken;
 }
 
-export default async function handler(req, res) {
+// CommonJS导出，Next pages/api原生支持，不会报export语法错误
+module.exports = async function handler(req, res) {
+  // CORS跨域配置，允许Lovable前端调用
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
+  // 处理浏览器OPTIONS预检请求
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -50,6 +54,7 @@ export default async function handler(req, res) {
       }
     );
     const resultData = await result.json();
+    // 只筛选食物类别，去重
     const foods = resultData.result
       .filter(item => item.root_object === "食物")
       .map(item => item.keyword);
